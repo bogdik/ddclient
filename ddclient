@@ -4710,6 +4710,8 @@ sub nic_dnsexit_update {
         $url .= $config{$h}{'login'};
         $url .= "&password=";
         $url .= $config{$h}{'password'};
+        $url .= "&myip=";
+        $url .= $ip;
         $url .= "&host=";
         $url .= $h;
         
@@ -4726,7 +4728,7 @@ sub nic_dnsexit_update {
 
         my @reply = split /\n/, $reply;
         my $returned = pop(@reply);
-        if ($returned =~ /OK/)
+        if ($returned =~ /OK/ && ( $returned =~ /0=/ || $returned =~ /4=/) )
         {
                 $config{$h}{'ip'}     = $ip;
                 $config{$h}{'mtime'}  = $now;
