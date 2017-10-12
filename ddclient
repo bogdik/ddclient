@@ -26,7 +26,7 @@ use Sys::Hostname;
 use IO::Socket;
 use Data::Validate::IP;
 
-my $version  = "3.8.3";
+my $version  = "3.8.3.1";
 my $programd  = $0; 
 $programd =~ s%^.*/%%;
 my $program   = $programd;
@@ -456,6 +456,9 @@ my %variables = (
 			'server'              => setv(T_FQDNP,  1, 0, 1, 'www.duckdns.org', undef),
 			'login'               => setv(T_LOGIN,  0, 0, 0, 'unused',            undef),
 	},
+	'dnsexit-common-defaults'       => {
+			'server'              => setv(T_FQDNP,  1, 0, 1, 'www.dnsexit.com', undef),
+	},
 	'freemyip-common-defaults'       => {
                         'server'              => setv(T_FQDNP,  1, 0, 1, 'freemyip.com', undef),
                         'login'               => setv(T_LOGIN,  0, 0, 0, 'unused',            undef),
@@ -676,6 +679,15 @@ my %services = (
         'examples'   => \&nic_duckdns_examples,
         'variables'  => merge(
                           $variables{'duckdns-common-defaults'},
+                          $variables{'service-common-defaults'},
+                        ),
+    },
+    'dnsexit' => {
+        'updateable' => undef,
+        'update'     => \&nic_dnsexit_update,
+        'examples'   => \&nic_dnsexit_examples,
+        'variables'  => merge(
+                          $variables{'dnsexit-common-defaults'},
                           $variables{'service-common-defaults'},
                         ),
     },
@@ -4644,6 +4656,87 @@ sub nic_duckdns_update {
          {
                 $config{$h}{'status'} = 'failed';
                 failed("updating %s: Server said: '$returned'", $h);
+         }
+    }
+}
+
+######################################################################
+## nic_dnsexit_examples
+######################################################################
+sub nic_dnsexit_examples {
+    return <<EoEXAMPLE;
+o 'dnsexit'
+
+The 'dnsexit' protocol is used by the free
+dynamic DNS service offered by www.dnsexit.com.
+
+Configuration variables applicable to the 'dnsexit' protocol are:
+  protocol=dnsexit               ##
+  server=www.dnsexit.com   ## defaults to www.dnsexit.org
+  login=service-login 		## login registered with the service
+  password=service-password    ## password registered with the service
+  non-fully.qualified.host         ## the host registered with the service.
+
+Example ${program}.conf file entries:
+  ## single host update
+  protocol=dnsexit,   
+  login=my-login,                                    \\
+  password=z0mgs3cjur3p4ss                    \\
+  myhost
+
+EoEXAMPLE
+}
+
+######################################################################
+## nic_dnsexit_update
+## by Bogdik (copypasta from nic_duckdns_update)
+## http://www.dnsexit.com/RemoteUpdate.sv?login=LOGIN&password=PASS&host=IP
+## response contains OK or KO
+######################################################################
+sub nic_dnsexit_update {
+    debug("\nnic_dnsexit_update -------------------");
+
+    ## update each configured host
+    ## should improve to update in one pass
+    foreach my $h (@_) {
+        my $ip = delete $config{$h}{'wantip'};
+        info("setting IP address to %s for %s", $ip, $config{$h}{'login'});
+        verbose("UPDATE:","updating %s", $config{$h}{'login'});
+
+        # Set the URL that we're going to to update
+        my $url;
+        $url  = "https://$config{$h}{'server'}/RemoteUpdate.sv";
+        $url .= "?login=";
+        $url .= $config{$h}{'login'};
+        $url .= "&password=";
+        $url .= $config{$h}{'password'};
+        $url .= "&host=";
+        $url .= $h;
+        
+
+        # Try to get URL
+        my $reply = geturl(opt('proxy'), $url);
+
+        # No response, declare as failed
+        if (!defined($reply) || !$reply) {
+            failed("updating %s: Could not connect to %s.", $h, $config{$h}{'server'});
+            last;
+        }
+        last if !header_ok($h, $reply);
+
+        my @reply = split /\n/, $reply;
+        my $returned = pop(@reply);
+        if ($returned =~ /OK/)
+        {
+                $config{$h}{'ip'}     = $ip;
+                $config{$h}{'mtime'}  = $now;
+                $config{$h}{'status'} = 'good';
+                success("updating %s: good: IP address set to %s", $config{$h}{'login'}, $ip);
+         }
+         else
+         {
+                $config{$h}{'status'} = 'failed';
+                failed("updating %s: Server said: '$returned'", $config{$h}{'login'});
          }
     }
 }

@@ -28,6 +28,8 @@ Dynamic DNS services currently supported include:
     Duckdns     - See https://duckdns.org/ for details
     Freemyip    - See https://freemyip.com for details
     woima.fi    - See https://woima.fi/ for details
+    nfsn	- See https://www.nearlyfreespeech.net/ for details
+    dnsexit.com - See http://www.dnsexit.com/ for details
 
 DDclient now supports many of cable/dsl broadband routers. 
 
